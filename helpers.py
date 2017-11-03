@@ -30,34 +30,37 @@ def plotter(xlabel=None, ylabel=None, title=None, xlim=None, ylim=None):
     if xlim: plt.xlim((0, xlim));
     if ylim: plt.ylim((0, ylim));
     if title: plt.title(title)
-    return fig, ax
+    return ax, fig
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def npy_saver(arr, arr_name, verbose=True):
-    start = time.time()
-    with open('data/%s.npy' % (arr_name), 'wb+') as f:
-        np.save(f, arr)
-    if verbose:
-        print('Save: data/%s.npy' % (arr_name))
-        print('%5.2f MB written' % (arr.nbytes/1e6))
-        print_runtime(start)
-    return
+def split_data(Y_indices, Y):
+    N = Y.shape[0]
+    i0 = int(N*.64)
+    i1 = int(N*.80)
+    
+    train_Y_indices = Y_indices[:i0]
+    train_Y = Y[:i0]
+    
+    cv_Y_indices = Y_indices[i0:i1]
+    cv_Y = Y[i0:i1]
+    
+    test_Y_indices = Y_indices[i1:]
+    test_Y = Y[i1:]
+    
+    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def npy_loader(arr_name, verbose=True):
-    start = time.time()
-    with open('data/%s.npy' % (arr_name),'rb') as f:
-        out = np.load(f)    
-    if verbose:
-        print('Load: data/%s.npy' % (arr_name))
-        print('%5.2f MB loaded' % (out.nbytes/1e6))
-        print_runtime(start)
-    return out
-
+def shuffler(a,b):
+    i = np.arange(a.shape[0])
+    np.random.shuffle(i)
+    a = a[i]
+    b = b[i]
+    return a,b
+    
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
