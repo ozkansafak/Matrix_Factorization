@@ -1,7 +1,10 @@
 .DS_Store
-data/
+data
 data_ml-20m
+__pycache__
+*.pyc
 .ipynb_checkpoints
+**.*
 !main.ipynb
 !*.py
 !*.md	

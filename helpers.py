@@ -20,22 +20,36 @@ def print_runtime(start, p_flag=True):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def plotter(xlabel=None, ylabel=None, title=None, xlim=None, ylim=None):
+def plotter(batch, mae_train_arr, mae_cv_arr, mae_test_arr, loss_arr):
     fig = plt.figure()
-    ax = plt.gca()
-    fig.set_size_inches((15,5))
-    plt.grid('on')
-    if xlabel: plt.xlabel(xlabel)
-    if ylabel: plt.ylabel(ylabel)
-    if xlim: plt.xlim((0, xlim));
-    if ylim: plt.ylim((0, ylim));
-    if title: plt.title(title)
-    return ax, fig
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+
+    ax1.plot(range(1,batch.epoch+1), mae_train_arr, 'kd-', alpha=.6);
+    ax1.plot(range(1,batch.epoch+1), mae_cv_arr, 'rd-', alpha=.6);
+    ax1.plot(range(1,batch.epoch+1), mae_test_arr, 'bd-', alpha=.6);
+    ax1.legend(['train', 'cv', 'test'])
+    ax2.plot(range(1,batch.epoch+1), loss_arr, 'kd-', alpha=.6);
+    
+    ax1.set_title('MAE')
+    ax2.set_title('Training Loss')
+    ax1.set_xlabel('epochs')
+    ax2.set_xlabel('epochs')
+
+    i_min = np.argmin(mae_cv_arr)
+    ax1.plot(i_min+1,mae_cv_arr[i_min], 'ro', markersize=13,
+                markeredgewidth=2, markerfacecolor='None')
+    ax1.text
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 def split_data(Y_indices, Y):
+    # training data takes up 64% of shuffled data
+    # cv data 16% and
+    # test data 20%
+    
     N = Y.shape[0]
     i0 = int(N*.64)
     i1 = int(N*.80)
@@ -118,23 +132,17 @@ def get_sliced_UV(Y_indices, Y, U, V, k, BATCH_SIZE):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def evaluate(cv_Y, cv_Y_indices, _U, _V, BATCH_SIZE):
+def evaluate(sess, cv_Y, cv_Y_indices, Y_pred, Y_indices, Y, BATCH_SIZE):
     i0 = (-1) * BATCH_SIZE
     i1 = 0
     preds = np.zeros((len(cv_Y) // BATCH_SIZE) * BATCH_SIZE)
     for step in range(len(cv_Y) // BATCH_SIZE):
         i0 = i0 + BATCH_SIZE
         i1 = i1 + BATCH_SIZE
-        u_idx = cv_Y_indices[i0:i1, 0]
-        v_idx = cv_Y_indices[i0:i1, 1]
-        sliced_U = _U[u_idx] 
-        sliced_V = _V[v_idx] 
-        preds[i0:i1] = np.sum(np.multiply(sliced_U, sliced_V), axis=1)
+        preds[i0:i1] = sess.run(Y_pred, feed_dict={Y_indices: cv_Y_indices[i0:i1], Y: cv_Y[i0:i1]})
         
     mae = np.sum(np.abs(cv_Y[:i1] - preds)) / preds.shape[0]
     return preds, mae
-
-        
-        
-        
-        
+    
+    
+    
