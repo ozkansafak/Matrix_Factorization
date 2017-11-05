@@ -20,27 +20,28 @@ def print_runtime(start, p_flag=True):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def plotter(batch, mae_train_arr, mae_cv_arr, mae_test_arr, loss_arr):
+def plotter(mae_train_arr, mae_cv_arr, mae_test_arr, loss_arr):
     fig = plt.figure()
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
-    ax1.plot(range(1,batch.epoch+1), mae_train_arr, 'kd-', alpha=.6);
-    ax1.plot(range(1,batch.epoch+1), mae_cv_arr, 'rd-', alpha=.6);
-    ax1.plot(range(1,batch.epoch+1), mae_test_arr, 'bd-', alpha=.6);
+    n_epoch = len(mae_train_arr)
+    ax1.plot(range(1,n_epoch+1), mae_train_arr, 'kd-', alpha=.6);
+    ax1.plot(range(1,n_epoch+1), mae_cv_arr, 'rd-', alpha=.6);
+    ax1.plot(range(1,n_epoch+1), mae_test_arr, 'bd-', alpha=.6);
     ax1.legend(['train', 'cv', 'test'])
-    ax2.plot(range(1,batch.epoch+1), loss_arr, 'kd-', alpha=.6);
+    ax2.plot(range(1,n_epoch+1), loss_arr, 'kd-', alpha=.6);
     
     ax1.set_title('MAE')
-    ax2.set_title('Training Loss')
+    ax2.set_title('Training Loss (RMS error)')
     ax1.set_xlabel('epochs')
     ax2.set_xlabel('epochs')
 
     i_min = np.argmin(mae_cv_arr)
     ax1.plot(i_min+1,mae_cv_arr[i_min], 'ro', markersize=13,
                 markeredgewidth=2, markerfacecolor='None')
-    ax1.text
 
+    return ax1, ax2
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -140,7 +141,7 @@ def evaluate(sess, cv_Y, cv_Y_indices, Y_pred, Y_indices, Y, BATCH_SIZE):
         i0 = i0 + BATCH_SIZE
         i1 = i1 + BATCH_SIZE
         preds[i0:i1] = sess.run(Y_pred, feed_dict={Y_indices: cv_Y_indices[i0:i1], Y: cv_Y[i0:i1]})
-        
+
     mae = np.sum(np.abs(cv_Y[:i1] - preds)) / preds.shape[0]
     return preds, mae
     
