@@ -26,13 +26,15 @@ def plotter(mae_train_arr, mae_cv_arr, mae_test_arr, loss_arr):
     ax2 = fig.add_subplot(122)
 
     n_epoch = len(mae_train_arr)
-    ax1.plot(range(1,n_epoch+1), mae_train_arr, 'kd-', alpha=.6);
-    ax1.plot(range(1,n_epoch+1), mae_cv_arr, 'rd-', alpha=.6);
-    ax1.plot(range(1,n_epoch+1), mae_test_arr, 'bd-', alpha=.6);
+    ax1.plot(range(1, n_epoch+1), mae_train_arr, 'kd-', alpha=.6);
+    ax1.plot(range(1, n_epoch+1), mae_cv_arr, 'rd-', alpha=.6);
+    ax1.plot(range(1, n_epoch+1), mae_test_arr, 'bd-', alpha=.6);
+    ax1.set_xlim(left=1);
+    i_min = np.argmin(mae_cv_arr)
+    ax1.set_title('MAE_cv: {:6.4f}'.format(mae_cv_arr[i_min]))
     ax1.legend(['train', 'cv', 'test'])
-    ax2.plot(range(1,n_epoch+1), loss_arr, 'kd-', alpha=.6);
+    ax2.plot(range(1, n_epoch+1), loss_arr, 'kd-', alpha=.6);
     
-    ax1.set_title('MAE')
     ax2.set_title('Training Loss (RMS error)')
     ax1.set_xlabel('epochs')
     ax2.set_xlabel('epochs')
