@@ -51,3 +51,4 @@ Here, we're multiplying $$p^{th}$$ feature of user $$i$$ with $$q^{th}$$ feature
 `Y_pred = np.dot(U,V) + alpha1*(xft) + alpha2*(uv_sq)`
 
 The runtime for one epoch went from $$31$$ sec for linear model to $$60$$ sec when considering all 3 types of nonlinear feature crosssings ($$u_{ip}$$ ~ $$v_{jq}$$), ($$u_{ip}$$ ~ $$u_{iq}$$), ($$v_{jp}$$ ~ $$v_{jq}$$)
+\begin{equation}u_i \cdot v_j\end{equation}
