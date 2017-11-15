@@ -3,6 +3,7 @@ LAMBDA: 0.01
 k: 10
 lr: 0.005
 n_batches: 781
+<<<<<<< HEAD
 BATCH_SIZE: 16384
 mae_train: 0.6288, **mae_cv: 0.6431**, mae_test: 0.6435,  mean(preds): 3.5217
 mae_train: 0.6042, **mae_cv: 0.6292**, mae_test: 0.6297,  mean(preds): 3.5155
@@ -14,3 +15,6 @@ mae_train: 0.5524, **mae_cv: 0.6146**, mae_test: 0.6151,  mean(preds): 3.5196
 mae_train: 0.5497, **mae_cv: 0.6151**, mae_test: 0.6157,  mean(preds): 3.5128
 mae_train: 0.5480, **mae_cv: 0.6161**, mae_test: 0.6167,  mean(preds): 3.5025
 mae_train: 0.5456, **mae_cv: 0.6157**, mae_test: 0.6163,  mean(preds): 3.5083
+=======
+BATCH_SIZE: 16384
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34

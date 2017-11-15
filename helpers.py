@@ -10,13 +10,13 @@ from matplotlib.ticker import MaxNLocator
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def print_runtime(start, p_flag=True):
+def print_runtime(start, p_flag=False):
     end = time.time()
     if p_flag:
+        return 'Runtime: %d min %d sec' % ((end-start)//60, (end-start)%60)
+    else:
         print('Runtime: %d min %d sec' % ((end-start)//60, (end-start)%60))
         return None
-    else:
-        return 'Runtime: %d min %d sec' % ((end-start)//60, (end-start)%60)
     
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -42,7 +42,7 @@ def plotter(mae_train_arr, mae_cv_arr, mae_test_arr, loss_arr, BATCH_SIZE):
     ax2.set_xlabel('epochs')
     ax2.set_ylim(0.7, 1)
     i_min = np.argmin(mae_cv_arr)
-    ax1.plot(i_min+1,mae_cv_arr[i_min], 'ro', markersize=13,
+    ax1.plot(i_min+1, mae_cv_arr[i_min], 'ro', markersize=13,
                 markeredgewidth=2, markerfacecolor='None')
     
     return ax1, ax2
@@ -50,47 +50,51 @@ def plotter(mae_train_arr, mae_cv_arr, mae_test_arr, loss_arr, BATCH_SIZE):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def calculate_u_mean(train_Y_indices, train_Y, cv_Y_indices, cv_Y):
+def calculate_and_pickle_u_mean_dict(train_Y_indices, train_Y, cv_Y_indices, cv_Y):
     start = time.time()
-    users = np.concatenate((train_Y_indices, cv_Y_indices))[:,0]
-    users = set(users)
-    all_data_indices = np.concatenate((train_Y_indices, cv_Y_indices))
-    all_data_Y = np.concatenate((train_Y, cv_Y))
-    u_mean = dict() 
-    print('Calculating u_mean.... (it takes ~45 mins)')
+    all_user_indices = np.concatenate((train_Y_indices, cv_Y_indices))[:,0]
+    users = set(all_user_indices)
+    
+    all_Y = np.concatenate((train_Y, cv_Y))
+    u_mean_dict = dict() 
+    print('Calculating u_mean_dict.... (it takes ~45 mins)')
     
     for u in users:
-        u_mean[u] = np.mean(all_data_Y[all_data_indices[:,0] == u])
+        u_mean_dict[u] = np.mean(all_Y[all_user_indices == u])
     
-    print('Writing to u_mean.pkl....')
-    with open('data/u_mean.pkl', 'wb') as f:
-        pickle.dump(u_mean, f, pickle.HIGHEST_PROTOCOL)
+    print('Writing to u_mean_dict.pkl....')
+    with open('data/u_mean_dict.pkl', 'wb') as f:
+        pickle.dump(u_mean_dict, f, pickle.HIGHEST_PROTOCOL)
 
-    return
+    o = print_runtime(start, True)
+    print('Finished u_mean_dict... ' + o)
+    return u_mean_dict
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def calculate_v_mean(train_Y_indices, train_Y, cv_Y_indices, cv_Y):
+def calculate_and_pickle_v_mean_dict(train_Y_indices, train_Y, cv_Y_indices, cv_Y):
     start = time.time()
-    movies = np.concatenate((train_Y_indices, cv_Y_indices))[:,1]
-    movies = set(movies)
-    all_data_indices = np.concatenate((train_Y_indices, cv_Y_indices))
-    all_data_Y = np.concatenate((train_Y, cv_Y))
-    v_mean = dict() 
-    print('Calculating v_mean.... (it takes ~45 mins)')
+    all_movie_indices = np.concatenate((train_Y_indices, cv_Y_indices))[:,1]
+    movies = set(all_movie_indices)
+    
+    all_Y = np.concatenate((train_Y, cv_Y))
+    v_mean_dict = dict() 
+    print('Calculating v_mean_dict.... (it takes ~45 mins)')
     
     i = 0
     for v in movies:
         i += 1
         print('i:%d,  v:%d' % (i,v), end='\r')
-        v_mean[v] = np.mean(all_data_Y[all_data_indices[:,1] == v])
+        v_mean_dict[v] = np.mean(all_Y[all_movie_indices == v])
     
-    print('Writing to v_mean.pkl....')
-    with open('data/v_mean.pkl', 'wb') as f:
-        pickle.dump(v_mean, f, pickle.HIGHEST_PROTOCOL)
+    print('Writing to v_mean_dict.pkl....')
+    with open('data/v_mean_dict.pkl', 'wb') as f:
+        pickle.dump(v_mean_dict, f, pickle.HIGHEST_PROTOCOL)
 
-    return
+    o = print_runtime(start, True)
+    print('Finished v_mean_dict... ' + o)
+    return v_mean_dict
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -129,9 +133,17 @@ def shuffler(a,b):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 class Batch(object):
+<<<<<<< HEAD
     def __init__(self, Y_indices, Y, train_u_mean, train_v_mean, BATCH_SIZE):
         self.Y_indices = Y_indices
         self.Y = Y
+=======
+    def __init__(self, Y_indices, Y_values, train_u_mean, train_v_mean, BATCH_SIZE):
+        # name u_mean and v_mean and have them have the same shape as and corresponding values to Y_indices and Y
+        # the original u_mean.pkl and v_mean.pl should be named u_mean_dict.pkl and v_mean_dict.pkl
+        self.Y_indices = Y_indices
+        self.Y_values = Y_values
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
         self.train_u_mean = train_u_mean
         self.train_v_mean = train_v_mean
         self.BATCH_SIZE = BATCH_SIZE
@@ -140,7 +152,7 @@ class Batch(object):
         self.epoch = 0
         self.broken = False
         self.last_batch = False
-
+    #
     def next(self):
         if self.i1 >= len(self.Y):
             # new epoch.
@@ -151,6 +163,7 @@ class Batch(object):
             self.i0 = 0
             self.i1 = self.i0 + self.BATCH_SIZE
             print('New epoch: %d %s' % (self.epoch, '*'*30))
+<<<<<<< HEAD
             return self.Y_indices[self.i0:self.i1], self.Y[self.i0:self.i1], \
                self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
 
@@ -164,6 +177,20 @@ class Batch(object):
         return self.Y_indices[self.i0:self.i1], self.Y[self.i0:self.i1], \
                self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
 
+=======
+        else:
+            self.i0 = self.i0 + self.BATCH_SIZE
+            self.i1 = min(self.i0 + self.BATCH_SIZE, len(self.Y_values))
+            if self.i1 - self.i0 < self.BATCH_SIZE:
+                # broken batch.
+                self.broken = True
+            if self.i1 == len(self.Y_values):
+                self.last_batch = True
+                
+        return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1], \
+               self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
+    # 
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
@@ -180,7 +207,18 @@ def get_stacked_UV(Y_indices, Y, U, V, k, u_mean, v_mean, BATCH_SIZE):
     stacked_U = tf.gather_nd(U, indices_U)
     stacked_V = tf.gather_nd(V, indices_V)
     # .....................................
+<<<<<<< HEAD
     
+=======
+    
+    rows_U = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
+    rows_V = tf.transpose(np.ones((k,1), dtype=np.int32)*v_idx)
+    cols = np.arange(k, dtype=np.int32).reshape((1,-1))
+    cols = tf.tile(cols, [BATCH_SIZE,1])
+    
+    indices_U = tf.stack([rows_U, cols], -1)
+    indices_V = tf.stack([rows_V, cols], -1)
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
     stacked_u_mean = tf.gather_nd(u_mean, indices_U)
     stacked_v_mean = tf.gather_nd(v_mean, indices_V)
     
@@ -206,7 +244,7 @@ def evaluate_preds_n_mae(sess, cv_Y, cv_Y_indices, Y_pred, Y_indices, Y, BATCH_S
 
 def npy_read_data():
     
-    print('Reading train_*.npy , cv_*.npy , test_*.npy and and u_mean.pkl files....')
+    print('Reading .npy and .pkl files....')
     
     with open('data/train_Y_indices.npy', 'rb') as f:
         train_Y_indices = np.load(f)
@@ -224,12 +262,20 @@ def npy_read_data():
         test_Y = np.load(f)
         
     with open('data/u_mean_dict.pkl', 'rb') as f:
+<<<<<<< HEAD
         u_mean = pickle.load(f)
     with open('data/v_mean_dict.pkl', 'rb') as f:
         v_mean = pickle.load(f)
+=======
+        u_mean_dict = pickle.load(f)
+    with open('data/v_mean_dict.pkl', 'rb') as f:
+        v_mean_dict = pickle.load(f)
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
 
-    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean, v_mean
+    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean_dict, v_mean_dict
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='data_ml-20m/movies.csv'):
     # Read the Lab41 dataset into 
@@ -313,6 +359,7 @@ def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='dat
             np.save(f, test_Y_indices)
         with open('data/test_Y.npy', 'wb+') as f:
             np.save(f, test_Y)
+<<<<<<< HEAD
     
     d = np.concatenate((train_Y_indices[:,0], cv_Y_indices[:,0], test_Y_indices[:,0]))
     n_users = len(set(d))
@@ -325,11 +372,28 @@ def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='dat
 
     return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, n_users, n_movies, u_mean_dict, v_mean_dict
 
+=======
+    
+    d = np.concatenate((train_Y_indices[:,0], cv_Y_indices[:,0], test_Y_indices[:,0]))
+    n_users = len(set(d))
+
+    d = np.concatenate((train_Y_indices[:,1], cv_Y_indices[:,1], test_Y_indices[:,1]))
+    n_movies = len(set(d))
+    
+    # n_users = 138493
+    # n_movies = len(movies[1:]) # n_movies = 27278
+
+    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, n_users, n_movies, u_mean_dict, v_mean_dict
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+<<<<<<< HEAD
 def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493, n_movies=27278):
+=======
+def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493, n_movies=26744):
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
 
     Y = tf.placeholder(dtype=tf.float32, shape=(BATCH_SIZE,)) 
     Y_indices = tf.placeholder(dtype=tf.int32, shape=(BATCH_SIZE,2)) 
@@ -340,11 +404,15 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     # set mean=np.sqrt(mu/k), where mu ~ 3 or 3.5
     U = tf.Variable(tf.truncated_normal(shape=(n_users,k), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
     V = tf.Variable(tf.truncated_normal(shape=(n_movies,k), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
+<<<<<<< HEAD
     
+=======
+        
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
     # weights for cross-features
-    UV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
-    UU_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
-    VV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
+    UV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=-np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
+    UU_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=-np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
+    VV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=-np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
     
     #.............................................. 
     
@@ -352,6 +420,7 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
 
     # the term `tf.reduce_sum(U**2)` without passing an axis parameter sums up all the elements of matrix U**2.
     # Return value is a scalar.
+<<<<<<< HEAD
     reg = (tf.reduce_sum((stacked_U - stacked_u_mean)**2) + 
            tf.reduce_sum((stacked_V - stacked_v_mean)**2) + 
            tf.reduce_sum((UV_xft**2)) + 
@@ -363,13 +432,25 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     # Y_pred is a column vector of ratings corresponding to Y_indices
     
     lin = tf.reduce_sum(tf.multiply(stacked_U, stacked_V), axis=1) 
+=======
+    
+    #reg = LAMBDA * (((((tf.reduce_sum((stacked_U - stacked_u_mean)**2) + 
+    #                tf.reduce_sum((stacked_V - stacked_v_mean)**2)) + 
+    #                tf.reduce_sum((UV_xft**2))) + 
+    #                tf.reduce_sum((UU_xft**2))) + 
+    #                tf.reduce_sum((VV_xft**2)))) / (BATCH_SIZE*k)
+    
+    reg = tf.constant(0.0, dtype=tf.float32)
+    
+    # the term `tf.multiply(stacked_U, stacked_V)` is elementwise multiplication.
+    # Applying tf.reduce_sum(M, axis=1)--where M is a matrix--will sum all rows and return a column vector.
+    # Y_pred is a column vector of ratings corresponding to Y_indices
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
 
     # ...........................................................
-    #u_cdot_v_square = tf.square(tf.multiply(stacked_U, stacked_V)) 
-    # non-linear terms: np.multiply(U[i,:], V[j,:])**2
-    #nonlin = tf.reduce_sum(u_cdot_v_square, axis=1)
+    lin = tf.reduce_sum(tf.multiply(stacked_U, stacked_V), axis=1) 
 
-    xft = UV_xft[0,1] * tf.multiply(tf.transpose(stacked_U)[0], tf.transpose(stacked_V)[1])
+    xft = UV_xft[0,0] * tf.multiply(tf.transpose(stacked_U)[0], tf.transpose(stacked_V)[1])
     for p in range(k):
         for q in range(0, k):
             xft += UV_xft[p,q] * tf.multiply(tf.transpose(stacked_U)[p], tf.transpose(stacked_V)[q])
@@ -381,7 +462,10 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     for p in range(k):
         for q in range(p, k):
             xft += VV_xft[p,q] * tf.multiply(tf.transpose(stacked_V)[p], tf.transpose(stacked_V)[q])
+    #xft = tf.constant(np.zeros(BATCH_SIZE,), dtype=tf.float32)        
+    print('xft.get_shape(): %s' % xft.get_shape())
     # ...........................................................
+<<<<<<< HEAD
 
     Y_pred = tf.sigmoid(lin + xft) * 5
 
@@ -392,13 +476,43 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     train = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
     
     return train, loss, reg, Y_indices, Y, U, V, Y_pred, UV_xft, UU_xft, VV_xft, u_mean, v_mean
+=======
+    
+    Y_pred = tf.sigmoid(lin) * 5
+    
+    print('lin.get_shape(): %s ' % lin.get_shape())
+    print('xft.get_shape(): %s' % xft.get_shape())
+    print('Y_pred.get_shape(): %s ' % Y_pred.get_shape())
+    
+    # loss: L2-norm of difference btw actual and predicted ratings
+    loss = tf.sqrt(tf.reduce_sum((Y - Y_pred)**2)/BATCH_SIZE)# + reg
+    
+    # Define train op.
+    train = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
+    print('loss.get_shape(): %s ' % loss.get_shape())
+    print('tf.sqrt(tf.reduce_sum((Y - Y_pred)**2)/BATCH_SIZE): %a'% tf.sqrt(tf.reduce_sum((Y - Y_pred)**2)/BATCH_SIZE))
+    print('reg.get_shape(): %s ' % reg.get_shape())
+    print('UV_xft.get_shape(): %s ' % UV_xft.get_shape())
+    print('UU_xft.get_shape(): %s ' % UU_xft.get_shape())
+    print('VV_xft.get_shape(): %s ' % VV_xft.get_shape())
+    print('stacked_U.get_shape(): %s ' % stacked_U.get_shape())
+    print('stacked_V.get_shape(): %s ' % stacked_V.get_shape())
+    print('tf.reduce_sum(tf.multiply(stacked_U, stacked_V), axis=1).get_shape(): %s ' % tf.reduce_sum(tf.multiply(stacked_U, stacked_V), axis=1).get_shape())
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
 
+    
+    return train, loss, reg, Y_indices, Y, U, V, Y_pred, UV_xft, UU_xft, VV_xft, u_mean, v_mean
 
 
 def train_the_model(Y_indices, Y, train_Y_indices, train_Y, BATCH_SIZE, 
                NUM_EPOCHS, LAMBDA, k, lr, 
+<<<<<<< HEAD
                train, loss, reg, U, V, Y_pred,
                cv_Y, cv_Y_indices, test_Y, test_Y_indices,
+=======
+               train, loss, reg, U, V, Y_pred, 
+               cv_Y, cv_Y_indices, test_Y, test_Y_indices, 
+>>>>>>> 79222c95ac3fde0754a3db7ff886fe2473c3eb34
                UV_xft, UU_xft, VV_xft, 
                train_u_mean, train_v_mean, u_mean, v_mean):
     
