@@ -129,9 +129,11 @@ def shuffler(a,b):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 class Batch(object):
-    def __init__(self, Y_indices, Y_values, BATCH_SIZE):
+    def __init__(self, Y_indices, Y, train_u_mean, train_v_mean, BATCH_SIZE):
         self.Y_indices = Y_indices
-        self.Y_values = Y_values
+        self.Y_values = Y
+        self.train_u_mean = train_u_mean
+        self.train_v_mean = train_v_mean
         self.BATCH_SIZE = BATCH_SIZE
         self.i0 = np.inf
         self.i1 = np.inf
@@ -149,7 +151,8 @@ class Batch(object):
             self.i0 = 0
             self.i1 = self.i0 + self.BATCH_SIZE
             print('New epoch: %d %s' % (self.epoch, '*'*30))
-            return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1]
+            return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1], \
+               self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
 
         self.i0 = self.i0 + self.BATCH_SIZE
         self.i1 = min(self.i0 + self.BATCH_SIZE, len(self.Y_values))
@@ -158,12 +161,13 @@ class Batch(object):
             self.broken = True
         if self.i1 == len(self.Y_values):
             self.last_batch = True
-        return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1]
+        return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1], \
+               self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def get_stacked_UV(Y_indices, Y, U, V, k, BATCH_SIZE):
+def get_stacked_UV(Y_indices, Y, U, V, k, u_mean, v_mean, BATCH_SIZE):
     u_idx = Y_indices[:,0]
     v_idx = Y_indices[:,1]
     rows_U = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
@@ -175,8 +179,12 @@ def get_stacked_UV(Y_indices, Y, U, V, k, BATCH_SIZE):
     indices_V = tf.stack([rows_V, cols], -1)
     stacked_U = tf.gather_nd(U, indices_U)
     stacked_V = tf.gather_nd(V, indices_V)
+    # .....................................
     
-    return stacked_U, stacked_V
+    stacked_u_mean = tf.gather_nd(u_mean, indices_U)
+    stacked_v_mean = tf.gather_nd(v_mean, indices_V)
+    
+    return stacked_U, stacked_V, stacked_u_mean, stacked_v_mean
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -187,7 +195,7 @@ def evaluate_preds_n_mae(sess, cv_Y, cv_Y_indices, Y_pred, Y_indices, Y, BATCH_S
     preds = np.zeros((len(cv_Y) // BATCH_SIZE) * BATCH_SIZE)
     for step in range(len(cv_Y) // BATCH_SIZE):
         i0 = i0 + BATCH_SIZE
-        i1 = i1 + BATCH_SIZE
+        i1 = i0 + BATCH_SIZE
         preds[i0:i1] = sess.run(Y_pred, feed_dict={Y_indices: cv_Y_indices[i0:i1], Y: cv_Y[i0:i1]})
 
     mae = np.sum(np.abs(cv_Y[:i1] - preds)) / preds.shape[0]
@@ -197,7 +205,6 @@ def evaluate_preds_n_mae(sess, cv_Y, cv_Y_indices, Y_pred, Y_indices, Y, BATCH_S
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 def npy_read_data():
-    
     print('Reading train_*.npy , cv_*.npy , test_*.npy and and u_mean.pkl files....')
     
     with open('data/train_Y_indices.npy', 'rb') as f:
@@ -215,12 +222,12 @@ def npy_read_data():
     with open('data/test_Y.npy', 'rb') as f:
         test_Y = np.load(f)
         
-    with open('data/u_mean.pkl', 'rb') as f:
-        u_mean = pickle.load(f)
-    with open('data/v_mean.pkl', 'rb') as f:
-        v_mean = pickle.load(f)
+    with open('data/u_mean_dict.pkl', 'rb') as f:
+        u_mean_dict = pickle.load(f)
+    with open('data/v_mean_dict.pkl', 'rb') as f:
+        v_mean_dict = pickle.load(f)
 
-    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean, v_mean
+    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean_dict, v_mean_dict
 
 
 def read_and_split_data(RATINGS_PATH='./data_ml-20m/ratings.csv', MOVIES_PATH='./data_ml-20m/movies.csv'):
@@ -238,13 +245,12 @@ def read_and_split_data(RATINGS_PATH='./data_ml-20m/ratings.csv', MOVIES_PATH='.
     n_users = 138493
     n_movies = len(movies[1:]) # n_movies = 27278
 
-    if ('test_Y_indices.npy' not in ls) or ('train_Y_indices' not in ls) or ('cv_Y_indices' not in ls) or \
-        ('test_Y.npy' not in ls) or ('train_Y' not in ls) or ('cv_Y' in ls) or ('u_mean.pkl' not in ls) or \
-        ('v_mean.pkl' not in ls):
+    if ('test_Y_indices.npy' in ls) and ('train_Y_indices.npy' in ls) and ('cv_Y_indices.npy' in ls) and \
+        ('test_Y.npy' in ls) and ('train_Y.npy' in ls) and ('cv_Y.npy' in ls) and ('u_mean_dict.pkl' in ls) and \
+        ('v_mean_dict.pkl' in ls):
         
-        train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean, v_mean =  npy_read_data()
-        return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, n_users, n_movies, u_mean, v_mean
-    
+        train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean_dict, v_mean_dict =  npy_read_data()
+        
     else:
         # mapping from movie ID (as described in 'movies.csv'), to index in matrix V
         from_mID_2_idx = {}
@@ -303,26 +309,7 @@ def read_and_split_data(RATINGS_PATH='./data_ml-20m/ratings.csv', MOVIES_PATH='.
         with open('data/test_Y.npy', 'wb+') as f:
             np.save(f, test_Y)
        
-        return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, n_users, n_movies, u_mean
-
-def zero_out_the_mean(Y_indices, Y, u_mean):
-    start = time.time()
-    print('Subtracting the mean of the user from each rating....')
-    # for u, mu in u_mean.items():
-    #     mask = Y_indices[:,0] == u
-    #     Y[Y_indices[mask]] -= mu 
-    
-    i = -1
-    for uID, _ in Y_indices:
-        i += 1
-        mu = u_mean[uID]
-        Y[i] = Y[i] - mu
-        print('i: %d' % (i), end='\r')
-
-    o = print_runtime(start, p_flag=False)
-    print('\nAll means subtracted. ' + o)
-    return Y
-        
+    return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, n_users, n_movies, u_mean_dict, v_mean_dict
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -331,14 +318,14 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
 
     Y = tf.placeholder(dtype=tf.float32, shape=(BATCH_SIZE,))
     Y_indices = tf.placeholder(dtype=tf.int32, shape=(BATCH_SIZE,2))
-
+    u_mean = tf.placeholder(dtype=tf.float32, shape=(BATCH_SIZE,1)) 
+    v_mean = tf.placeholder(dtype=tf.float32, shape=(BATCH_SIZE,1)) 
+    
     # initialization of U and V is critical. 
     # set mean=np.sqrt(mu/k), where mu ~ 3 or 3.5
     U = tf.Variable(tf.truncated_normal(shape=(n_users,k), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
     V = tf.Variable(tf.truncated_normal(shape=(n_movies,k), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
-    # U_b = tf.Variable(tf.truncated_normal(shape=(n_users,1), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
-    # V_b = tf.Variable(tf.truncated_normal(shape=(n_movies,1), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
-    
+
     # weights for cross-features
     UV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
     UU_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
@@ -346,29 +333,25 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     
     #.............................................. 
     
-    stacked_U, stacked_V = get_stacked_UV(Y_indices, Y, U, V, k, BATCH_SIZE)
-    # stacked_U_b, stacked_V_b = get_stacked_UV(Y_indices, Y, U_b, V_b, 1, BATCH_SIZE)
-    # stacked_U_b = tf.reshape(stacked_U_b, shape=(BATCH_SIZE,))
-    # stacked_V_b = tf.reshape(stacked_V_b, shape=(BATCH_SIZE,))
-
+    stacked_U, stacked_V, stacked_u_mean, stacked_v_mean = get_stacked_UV(Y_indices, Y, U, V, k, u_mean, v_mean, BATCH_SIZE)
 
     # the term `tf.reduce_sum(U**2)` without passing an axis parameter sums up all the elements of matrix U**2.
     # Return value is a scalar.
-    reg = LAMBDA * (tf.reduce_sum((stacked_U)**2) + 
-                    tf.reduce_sum((stacked_V)**2) + 
-                    tf.reduce_sum((UV_xft**2)) + 
-                    tf.reduce_sum((UU_xft**2)) + 
-                    tf.reduce_sum((VV_xft**2))) / (BATCH_SIZE*k)
+    reg = (tf.reduce_sum((stacked_U - stacked_u_mean)**2) + 
+           tf.reduce_sum((stacked_V - stacked_v_mean)**2) + 
+           tf.reduce_sum((UV_xft**2)) + 
+           tf.reduce_sum((UU_xft**2)) + 
+           tf.reduce_sum((VV_xft**2))) / (BATCH_SIZE*k)
 
     # the term `tf.multiply(stacked_U, stacked_V)` is elementwise multiplication.
     # Applying tf.reduce_sum(M, axis=1)--where M is a matrix--will sum all rows and return a column vector.
     # Y_pred is a column vector of ratings corresponding to Y_indices
     
     lin = tf.reduce_sum(tf.multiply(stacked_U, stacked_V), axis=1) 
-    # bias = stacked_U_b + stacked_V_b
+
     # ...........................................................
-    #u_cdot_v_square = tf.square(tf.multiply(stacked_U, stacked_V)) 
     # non-linear terms: np.multiply(U[i,:], V[j,:])**2
+    #u_cdot_v_square = tf.square(tf.multiply(stacked_U, stacked_V)) 
     #nonlin = tf.reduce_sum(u_cdot_v_square, axis=1)
 
     xft = UV_xft[0,1] * tf.multiply(tf.transpose(stacked_U)[0], tf.transpose(stacked_V)[1])
@@ -385,16 +368,15 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
             xft += VV_xft[p,q] * tf.multiply(tf.transpose(stacked_V)[p], tf.transpose(stacked_V)[q])
     # ...........................................................
 
-    Y_pred = lin + xft
-    # Y_pred = tf.sigmoid(Y_pred) * 5
+    Y_pred = tf.sigmoid(lin + xft) * 5
 
-    # define loss function as square of L2-norm of difference btw actual and predicted ratings
-    loss = tf.sqrt(tf.reduce_sum((Y - Y_pred)**2)/BATCH_SIZE) + reg
+    # loss: L2-norm of difference btw actual and predicted ratings
+    loss = tf.sqrt(tf.reduce_sum((Y-Y_pred)**2)/BATCH_SIZE) + LAMBDA*reg
 
     # Define train op.
     train = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
     
-    return train, loss, reg, Y_indices, Y, U, V, Y_pred, UV_xft, UU_xft, VV_xft
+    return train, loss, reg, Y_indices, Y, U, V, Y_pred, UV_xft, UU_xft, VV_xft, u_mean, v_mean
 
 
 
@@ -402,31 +384,35 @@ def train_the_model(Y_indices, Y, train_Y_indices, train_Y, BATCH_SIZE,
                NUM_EPOCHS, LAMBDA, k, lr, 
                train, loss, reg, U, V, Y_pred,
                cv_Y, cv_Y_indices, test_Y, test_Y_indices,
-               UV_xft, UU_xft, VV_xft):
+               UV_xft, UU_xft, VV_xft, 
+               train_u_mean, train_v_mean, u_mean, v_mean):
     
     n_batches = len(train_Y) // BATCH_SIZE
     init = tf.global_variables_initializer()
-    batch = Batch(train_Y_indices, train_Y, BATCH_SIZE=BATCH_SIZE)
+    batch = Batch(train_Y_indices, train_Y, train_u_mean, train_v_mean, BATCH_SIZE=BATCH_SIZE)
     epoch_end = time.time()
     _loss, _reg, batch_no = 0, 0, 0
     mae_train_arr, mae_cv_arr , mae_test_arr, loss_arr = [], [], [], []
     
     f_out = open('out.txt', 'a+')
-    dp = 'NUM_EPOCHS: {}\nLAMBDA: {}\nk: {}\nlr: {}\nn_batches: {}\nBATCH_SIZE: {}'.format(NUM_EPOCHS, LAMBDA, k, lr, n_batches, BATCH_SIZE)
+    dp = 'NUM_EPOCHS: {}\nLAMBDA: {}\nk: {}\nlr: {}\nn_batches: {}\nBATCH_SIZE: {}'.format(\
+                                            NUM_EPOCHS, LAMBDA, k, lr, n_batches, BATCH_SIZE)
     f_out.write(dp)
     print('\n' + dp)
     f_out.close()
 
     with tf.Session() as sess:
         sess.run(init)
-        while not (batch.epoch == NUM_EPOCHS and batch.last_batch==True):
-            batch_Y_indices, batch_Y = batch.next()
+        while not (batch.epoch==NUM_EPOCHS and batch.last_batch==True):
+            batch_Y_indices, batch_Y, batch_u_mean, batch_v_mean = batch.next()
             if not batch.broken:
                 batch_no += 1
                 # _bl: batch loss
                 # _br: batch regularization term
+                
                 _, _bl, _br = sess.run([train, loss, reg], 
-                                          feed_dict={Y_indices: batch_Y_indices, Y: batch_Y})
+                                        feed_dict={Y_indices: batch_Y_indices, Y: batch_Y,\
+                                                   u_mean: batch_u_mean, v_mean: batch_v_mean})
                 
                 _loss += _bl
                 _reg += _br
