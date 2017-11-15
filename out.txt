@@ -1,7 +1,7 @@
 NUM_EPOCHS: 10
 LAMBDA: 0.0
 k: 10
-lr: 0.01
+lr: 0.005
 n_batches: 781
 BATCH_SIZE: 16384
 mae_train: 0.6364, **mae_cv: 0.6513**, mae_test: 0.6515,  mean(preds): 3.5174
