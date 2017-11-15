@@ -10,6 +10,21 @@ from matplotlib.ticker import MaxNLocator
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+def get_train_u_mean(train_Y_indices, u_mean_dict, v_mean_dict):
+    N = train_Y_indices.shape[0]
+    train_u_mean = np.zeros((N, 1))
+    train_v_mean = np.zeros((N, 1))
+    for i in range(N):
+        u_idx = train_Y_indices[i,0]
+        v_idx = train_Y_indices[i,1]
+        train_u_mean[i] = u_mean_dict[u_idx]
+        train_v_mean[i] = v_mean_dict[v_idx]
+
+    return train_u_mean, train_v_mean
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
 def print_runtime(start, p_flag=True):
     end = time.time()
     if p_flag:
@@ -151,16 +166,15 @@ class Batch(object):
             self.i0 = 0
             self.i1 = self.i0 + self.BATCH_SIZE
             print('New epoch: %d %s' % (self.epoch, '*'*30))
-            return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1], \
-               self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
-
-        self.i0 = self.i0 + self.BATCH_SIZE
-        self.i1 = min(self.i0 + self.BATCH_SIZE, len(self.Y_values))
-        if self.i1 - self.i0 < self.BATCH_SIZE:
-            # broken batch.
-            self.broken = True
-        if self.i1 == len(self.Y_values):
-            self.last_batch = True
+        else:
+            self.i0 = self.i0 + self.BATCH_SIZE
+            self.i1 = min(self.i0 + self.BATCH_SIZE, len(self.Y_values))
+            if self.i1 - self.i0 < self.BATCH_SIZE:
+                # broken batch.
+                self.broken = True
+            if self.i1 == len(self.Y_values):
+                self.last_batch = True
+        #
         return self.Y_indices[self.i0:self.i1], self.Y_values[self.i0:self.i1], \
                self.train_u_mean[self.i0:self.i1], self.train_v_mean[self.i0:self.i1]
 
@@ -230,13 +244,13 @@ def npy_read_data():
     return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean_dict, v_mean_dict
 
 
-def read_and_split_data(RATINGS_PATH='./data_ml-20m/ratings.csv', MOVIES_PATH='./data_ml-20m/movies.csv'):
+def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='data_ml-20m/movies.csv'):
     # Read the Lab41 dataset into 
     # train_Y, cv_Y, test_Y
     # train_Y_indices, cv_Y_indices, test_Y_indices
     start = time.time()
     ls = os.listdir('data')
-
+    
     with open(RATINGS_PATH) as f:
         ratings = f.readlines()
     with open(MOVIES_PATH) as f:
@@ -250,8 +264,11 @@ def read_and_split_data(RATINGS_PATH='./data_ml-20m/ratings.csv', MOVIES_PATH='.
         ('v_mean_dict.pkl' in ls):
         
         train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean_dict, v_mean_dict =  npy_read_data()
+        #n_movies = len(set(np.concatenate((train_Y_indices,cv_Y_indices,test_Y_indices))[:,1]))
+        print('n_movies {}'.format(n_movies))
         
     else:
+        print('npy and pkl not found...')
         # mapping from movie ID (as described in 'movies.csv'), to index in matrix V
         from_mID_2_idx = {}
         for i, row in enumerate(movies[1:]):
@@ -342,13 +359,13 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
            tf.reduce_sum((UV_xft**2)) + 
            tf.reduce_sum((UU_xft**2)) + 
            tf.reduce_sum((VV_xft**2))) / (BATCH_SIZE*k)
-
+    
     # the term `tf.multiply(stacked_U, stacked_V)` is elementwise multiplication.
     # Applying tf.reduce_sum(M, axis=1)--where M is a matrix--will sum all rows and return a column vector.
     # Y_pred is a column vector of ratings corresponding to Y_indices
     
     lin = tf.reduce_sum(tf.multiply(stacked_U, stacked_V), axis=1) 
-
+    
     # ...........................................................
     # non-linear terms: np.multiply(U[i,:], V[j,:])**2
     #u_cdot_v_square = tf.square(tf.multiply(stacked_U, stacked_V)) 
@@ -377,7 +394,6 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     train = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
     
     return train, loss, reg, Y_indices, Y, U, V, Y_pred, UV_xft, UU_xft, VV_xft, u_mean, v_mean
-
 
 
 def train_the_model(Y_indices, Y, train_Y_indices, train_Y, BATCH_SIZE, 

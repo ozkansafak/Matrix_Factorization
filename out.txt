@@ -4,11 +4,4 @@ k: 10
 lr: 0.01
 n_batches: 781
 BATCH_SIZE: 16384
-mae_train: 0.6175, **mae_cv: 0.6354**, mae_test: 0.6360,  mean(preds): 3.5276
-mae_train: 0.5875, **mae_cv: 0.6204**, mae_test: 0.6210,  mean(preds): 3.5279
-mae_train: 0.5722, **mae_cv: 0.6161**, mae_test: 0.6167,  mean(preds): 3.5289
-mae_train: 0.5633, **mae_cv: 0.6147**, mae_test: 0.6153,  mean(preds): 3.5389
-mae_train: 0.5575, **mae_cv: 0.6138**, mae_test: 0.6144,  mean(preds): 3.5539
-mae_train: 0.5536, **mae_cv: 0.6138**, mae_test: 0.6144,  mean(preds): 3.5527
-mae_train: 0.5510, **mae_cv: 0.6143**, mae_test: 0.6149,  mean(preds): 3.5444
-mae_train: 0.5490, **mae_cv: 0.6145**, mae_test: 0.6150,  mean(preds): 3.5461
+mae_train: 0.6195, **mae_cv: 0.6372**, mae_test: 0.6375,  mean(preds): 3.5275
