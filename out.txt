@@ -1,16 +1,16 @@
 NUM_EPOCHS: 10
-LAMBDA: 0.001
+LAMBDA: 0.01
 k: 10
-lr: 0.01
+lr: 0.005
 n_batches: 781
 BATCH_SIZE: 16384
-mae_train: 0.6299, **mae_cv: 0.6453**, mae_test: 0.6452,  mean(preds): 0.0127
-mae_train: 0.5993, **mae_cv: 0.6294**, mae_test: 0.6295,  mean(preds): 0.0091
-mae_train: 0.5815, **mae_cv: 0.6233**, mae_test: 0.6234,  mean(preds): -0.0028
-mae_train: 0.5717, **mae_cv: 0.6213**, mae_test: 0.6214,  mean(preds): -0.0094
-mae_train: 0.5640, **mae_cv: 0.6186**, mae_test: 0.6188,  mean(preds): 0.0084
-mae_train: 0.5585, **mae_cv: 0.6167**, mae_test: 0.6168,  mean(preds): 0.0311
-mae_train: 0.5552, **mae_cv: 0.6163**, mae_test: 0.6164,  mean(preds): 0.0351
-mae_train: 0.5529, **mae_cv: 0.6162**, mae_test: 0.6163,  mean(preds): 0.0386
-mae_train: 0.5512, **mae_cv: 0.6165**, mae_test: 0.6166,  mean(preds): 0.0250
-mae_train: 0.5515, **mae_cv: 0.6183**, mae_test: 0.6185,  mean(preds): -0.0114
+mae_train: 0.6288, **mae_cv: 0.6431**, mae_test: 0.6435,  mean(preds): 3.5217
+mae_train: 0.6042, **mae_cv: 0.6292**, mae_test: 0.6297,  mean(preds): 3.5155
+mae_train: 0.5833, **mae_cv: 0.6202**, mae_test: 0.6208,  mean(preds): 3.5222
+mae_train: 0.5699, **mae_cv: 0.6162**, mae_test: 0.6168,  mean(preds): 3.5307
+mae_train: 0.5615, **mae_cv: 0.6147**, mae_test: 0.6153,  mean(preds): 3.5309
+mae_train: 0.5561, **mae_cv: 0.6143**, mae_test: 0.6149,  mean(preds): 3.5268
+mae_train: 0.5524, **mae_cv: 0.6146**, mae_test: 0.6151,  mean(preds): 3.5196
+mae_train: 0.5497, **mae_cv: 0.6151**, mae_test: 0.6157,  mean(preds): 3.5128
+mae_train: 0.5480, **mae_cv: 0.6161**, mae_test: 0.6167,  mean(preds): 3.5025
+mae_train: 0.5456, **mae_cv: 0.6157**, mae_test: 0.6163,  mean(preds): 3.5083
