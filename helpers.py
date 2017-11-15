@@ -181,29 +181,6 @@ class Batch(object):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def get_stacked_UV(Y_indices, Y, U, V, k, u_mean, v_mean, BATCH_SIZE):
-    u_idx = Y_indices[:,0]
-    v_idx = Y_indices[:,1]
-    rows_U = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
-    rows_V = tf.transpose(np.ones((k,1), dtype=np.int32)*v_idx)
-    cols = np.arange(k, dtype=np.int32).reshape((1,-1))
-    cols = tf.tile(cols, [BATCH_SIZE,1])
-
-    indices_U = tf.stack([rows_U, cols], -1)
-    indices_V = tf.stack([rows_V, cols], -1)
-    stacked_U = tf.gather_nd(U, indices_U)
-    stacked_V = tf.gather_nd(V, indices_V)
-    
-    # .....................................
-    
-    stacked_u_mean = tf.gather_nd(u_mean, indices_U)
-    stacked_v_mean = tf.gather_nd(v_mean, indices_V)
-    
-    return stacked_U, stacked_V, stacked_u_mean, stacked_v_mean
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
 def evaluate_preds_n_mae(sess, cv_Y, cv_Y_indices, Y_pred, Y_indices, Y, BATCH_SIZE):
     i0 = (-1) * BATCH_SIZE
     i1 = 0
@@ -265,7 +242,6 @@ def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='dat
         ('v_mean_dict.pkl' in ls):
         
         train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, u_mean_dict, v_mean_dict =  npy_read_data()
-        #n_movies = len(set(np.concatenate((train_Y_indices,cv_Y_indices,test_Y_indices))[:,1]))
         print('n_movies {}'.format(n_movies))
         
     else:
@@ -328,6 +304,29 @@ def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='dat
             np.save(f, test_Y)
        
     return train_Y_indices, train_Y, cv_Y_indices, cv_Y, test_Y_indices, test_Y, n_users, n_movies, u_mean_dict, v_mean_dict
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def get_stacked_UV(Y_indices, Y, U, V, k, u_mean, v_mean, BATCH_SIZE):
+    u_idx = Y_indices[:,0]
+    v_idx = Y_indices[:,1]
+    rows_U = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
+    rows_V = tf.transpose(np.ones((k,1), dtype=np.int32)*v_idx)
+    cols = np.arange(k, dtype=np.int32).reshape((1,-1))
+    cols = tf.tile(cols, [BATCH_SIZE,1])
+
+    indices_U = tf.stack([rows_U, cols], -1)
+    indices_V = tf.stack([rows_V, cols], -1)
+    stacked_U = tf.gather_nd(U, indices_U)
+    stacked_V = tf.gather_nd(V, indices_V)
+    
+    # .....................................
+    
+    stacked_u_mean = tf.gather_nd(u_mean, indices_U)
+    stacked_v_mean = tf.gather_nd(v_mean, indices_V)
+    
+    return stacked_U, stacked_V, stacked_u_mean, stacked_v_mean
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -474,4 +473,3 @@ def train_the_model(Y_indices, Y, train_Y_indices, train_Y, BATCH_SIZE,
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
