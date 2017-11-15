@@ -331,6 +331,28 @@ def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='dat
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+def get_stacked_UV(Y_indices, Y, U, V, k, u_mean, v_mean, BATCH_SIZE):
+    u_idx = Y_indices[:,0]
+    v_idx = Y_indices[:,1]
+    rows_U = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
+    rows_V = tf.transpose(np.ones((k,1), dtype=np.int32)*v_idx)
+    cols = np.arange(k, dtype=np.int32).reshape((1,-1))
+    cols = tf.tile(cols, [BATCH_SIZE,1])
+
+    indices_U = tf.stack([rows_U, cols], -1)
+    indices_V = tf.stack([rows_V, cols], -1)
+    stacked_U = tf.gather_nd(U, indices_U)
+    stacked_V = tf.gather_nd(V, indices_V)
+    # .....................................
+    
+    stacked_u_mean = tf.gather_nd(u_mean, indices_U)
+    stacked_v_mean = tf.gather_nd(v_mean, indices_V)
+    
+    return stacked_U, stacked_V, stacked_u_mean, stacked_v_mean
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
 def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493, n_movies=27278):
 
     Y = tf.placeholder(dtype=tf.float32, shape=(BATCH_SIZE,))
@@ -344,6 +366,7 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     V = tf.Variable(tf.truncated_normal(shape=(n_movies,k), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
 
     # weights for cross-features
+    
     UV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
     UU_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
     VV_xft = tf.Variable(tf.truncated_normal(shape=(k,k), mean=1*np.sqrt(1./k), stddev=0.2), dtype=tf.float32)
@@ -355,10 +378,7 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     # the term `tf.reduce_sum(U**2)` without passing an axis parameter sums up all the elements of matrix U**2.
     # Return value is a scalar.
     reg = (tf.reduce_sum((stacked_U - stacked_u_mean)**2) + 
-           tf.reduce_sum((stacked_V - stacked_v_mean)**2) + 
-           tf.reduce_sum((UV_xft**2)) + 
-           tf.reduce_sum((UU_xft**2)) + 
-           tf.reduce_sum((VV_xft**2))) / (BATCH_SIZE*k)
+           tf.reduce_sum((stacked_V - stacked_v_mean)**2)) / (BATCH_SIZE*k)
     
     # the term `tf.multiply(stacked_U, stacked_V)` is elementwise multiplication.
     # Applying tf.reduce_sum(M, axis=1)--where M is a matrix--will sum all rows and return a column vector.
