@@ -3,5 +3,6 @@ data
 data_ml-20m
 __pycache__/*pyc
 *.pyc
+*.png
 .ipynb_checkpoints
 main_old.ipynb
