@@ -308,27 +308,24 @@ def read_and_split_data(RATINGS_PATH='data_ml-20m/ratings.csv', MOVIES_PATH='dat
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def get_stacked_UV(R_indices, R, U, V, X_UV, k, u_mean, v_mean, BATCH_SIZE):
+def get_stacked_UV(R_indices, R, U, V, k, u_mean, v_mean, BATCH_SIZE):
     u_idx = R_indices[:,0]
     v_idx = R_indices[:,1]
     rows_U = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
     rows_V = tf.transpose(np.ones((k,1), dtype=np.int32)*v_idx)
-    rows_X_UV = tf.transpose(np.ones((k,1), dtype=np.int32)*u_idx)
     cols = np.arange(k, dtype=np.int32).reshape((1,-1))
     cols = tf.tile(cols, [BATCH_SIZE,1])
 
     indices_U = tf.stack([rows_U, cols], -1)
     indices_V = tf.stack([rows_V, cols], -1)
-    indices_X_UV = tf.stack([rows_X_UV, cols], -1)
     stacked_U = tf.gather_nd(U, indices_U)
     stacked_V = tf.gather_nd(V, indices_V)
-    stacked_X_UV = tf.gather_nd(X_UV, indices_X_UV)
     # .....................................
     
     stacked_u_mean = tf.gather_nd(u_mean, indices_U)
     stacked_v_mean = tf.gather_nd(v_mean, indices_V)
     
-    return stacked_U, stacked_V, stacked_X_UV, stacked_u_mean, stacked_v_mean
+    return stacked_U, stacked_V, stacked_u_mean, stacked_v_mean
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -346,11 +343,11 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     V = tf.Variable(tf.truncated_normal(shape=(n_movies,k), mean=np.sqrt(3.5/k), stddev=0.2), dtype=tf.float32)
 
     # weights for cross-features
-    X_UV = tf.Variable(tf.truncated_normal(shape=(n_users,k,k), mean=0, stddev=0.2), dtype=tf.float32)
+    X_UV = tf.Variable(tf.truncated_normal(shape=(k,k), mean=0, stddev=0.2), dtype=tf.float32)
     
     #.............................................. 
     
-    stacked_U, stacked_V, stacked_X_UV, stacked_u_mean, stacked_v_mean = get_stacked_UV(R_indices, R, U, V, X_UV, k, u_mean, v_mean, BATCH_SIZE)
+    stacked_U, stacked_V, stacked_u_mean, stacked_v_mean = get_stacked_UV(R_indices, R, U, V, k, u_mean, v_mean, BATCH_SIZE)
 
     # the term `tf.reduce_sum(U**2)` without passing an axis parameter sums up all the elements of matrix U**2.
     # Return value is a scalar.
@@ -370,15 +367,14 @@ def construct_graph(LAMBDA=0, k=10, lr=0.001, BATCH_SIZE=1024*16, n_users=138493
     # nonlin = tf.reduce_sum(u_cdot_v_square, axis=1)
     
     #xft = tf.transpose(stacked_X_UV, perm=[1,2,0])[0,1] * tf.multiply(tf.transpose(stacked_U)[0], tf.transpose(stacked_V)[1])
-    xft = stacked_X_UV[:,0,0] * stacked_U[:,0] * stacked_V[:,0]
+    xft = X_UV[0,0] * stacked_U[:,0] * stacked_V[:,0]
     for p in range(k):
         for q in range(k):
             #xft += tf.transpose(stacked_X_UV, perm=[1,2,0])[p,q] * tf.multiply(tf.transpose(stacked_U)[p], tf.transpose(stacked_V)[q])
-            xft += stacked_X_UV[:,p,q] * stacked_U[:,p] * stacked_V[:,q]
-    print(xft.get_shape())
+            xft += X_UV[p,q] * stacked_U[:,p] * stacked_V[:,q]
     # ...........................................................
 
-    R_pred = tf.sigmoid(lin + xft) * 5
+    R_pred = 0.5 + tf.sigmoid(lin + xft) * 4.5
 
     # loss: L2-norm of difference btw actual and predicted ratings
     loss = tf.sqrt(tf.reduce_sum((R-R_pred)**2)/BATCH_SIZE) + LAMBDA*reg
